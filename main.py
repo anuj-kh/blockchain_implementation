@@ -2,13 +2,15 @@ import Crypto
 
 import DES
 
-import des
+# import des
 
 from Crypto.Hash import SHA
 
 from datetime import datetime as dt
 
 from random import randint, sample
+
+from Crypto.Util.Padding import pad
 
 ########################
 ## Values for the ZKP ##
@@ -46,14 +48,19 @@ class Block:
         self.currHash = self.hashBlock()        # HASH OF THE CURRENT BLOCK
 
     def hashBlock(self):
-        hashed = SHA.new()
         data = str(self.index) + str(self.time) + str(self.user) + str(self.transaction) + str(self.prevHash) + str(self.nonce)
-        hashed.update(data.encode('utf-8'))
+        hashed = SHA.new(data.encode('utf-8'))
+        # hashed.update(data.encode('utf-8'))
+        hashed=str(hashed).split(" ")[-1]
+        hashed=hashed.rstrip(hashed[-1])
+        hashed=hashed.encode()
+        print(hashed)
         #DES
-        anskey = b"133457799BBCDFF1"
+        anskey = b"\x13\x34\x57\x79\x9B\xBC\xDF\xF1"
         des = DES.new(anskey, DES.MODE_ECB)
-
-        encryptedtext=des.encrypt(hashed)
+        # print("hello:",str(hashed))
+        encryptedtext=des.encrypt(pad(hashed, 64))
+        print("ho gaya")
         return encryptedtext
 
         
@@ -140,10 +147,10 @@ def verifyTransaction(self,x,user):
 
 
 def viewUser():
-    khatauli = input()
+    inputUser = input()
     data=[]
     for block in blockchain.blockchain:
-        if block.user == khatauli:
+        if block.user == inputUser:
             data.append(block.transaction)
     
     return data
