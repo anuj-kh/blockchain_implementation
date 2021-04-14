@@ -1,5 +1,8 @@
 import Crypto
+
 import DES
+
+import des
 
 from Crypto.Hash import SHA
 
@@ -28,7 +31,8 @@ keys = []
 y = []
 
 ####################################
-from des import DesKey
+#from des import DesKey
+from Crypto.Cipher import DES
 ####  Creating the Block Class  ####
 ####################################
 class Block:
@@ -43,12 +47,14 @@ class Block:
 
     def hashBlock(self):
         hashed = SHA.new()
-        data = str(self.index) + str(self.time) + str(self.user) + str(self.data) + str(self.prevHash) + str(self.nonce)
+        data = str(self.index) + str(self.time) + str(self.user) + str(self.transaction) + str(self.prevHash) + str(self.nonce)
         hashed.update(data.encode('utf-8'))
         #DES
-        anskey = DesKey(b"133457799BBCDFF1")
-        ans = anskey.encrypt(hashed)
-        return ans
+        anskey = b"133457799BBCDFF1"
+        des = DES.new(anskey, DES.MODE_ECB)
+
+        encryptedtext=des.encrypt(hashed)
+        return encryptedtext
 
         
 
@@ -122,17 +128,16 @@ class Blockchain:
 blockchain = Blockchain(2)
 blockchain.genesisBlock()
 
-def verifyTransaction(x,user):
+def verifyTransaction(self,x,user):
     blockchain.verify.append( (r+b*x) % (p-1))
     blockchain.verifyIndex = users.index(user)
     if blockchain.verifyTransaction():
         currentUser = user
-        mineBlock(user)
+        Blockchain.mineBlock(self,currentUser,self.transaction)
     else:
         error = 'Invalid User.'
         #dekhte hai.. tata bye bye
 
-blockchain.mineBlock(voter, votes)
 
 def viewUser():
     khatauli = input()
@@ -142,6 +147,12 @@ def viewUser():
             data.append(block.transaction)
     
     return data
+
+if __name__ == '__main__':
+    user = input()
+    transaction = input()
+    blockchain.mineBlock(user,transaction)
+    print("GREAT")
 
 # def mineBlock(user):
 #     votedUsers.append(user)
