@@ -1,4 +1,6 @@
 import Crypto
+import DES
+
 from Crypto.Hash import SHA
 
 from datetime import datetime as dt
@@ -26,6 +28,7 @@ keys = []
 y = []
 
 ####################################
+from des import DesKey
 ####  Creating the Block Class  ####
 ####################################
 class Block:
@@ -42,9 +45,12 @@ class Block:
         hashed = SHA.new()
         data = str(self.index) + str(self.time) + str(self.user) + str(self.data) + str(self.prevHash) + str(self.nonce)
         hashed.update(data.encode('utf-8'))
-        #DES 
-        return hashed
+        #DES
+        anskey = DesKey(b"133457799BBCDFF1")
+        ans = anskey.encrypt(hashed)
+        return ans
 
+        
 
 #########################################
 ####  Creating the Blockchain Class  ####
@@ -126,15 +132,26 @@ def verifyTransaction(x,user):
         error = 'Invalid User.'
         #dekhte hai.. tata bye bye
 
-def mineBlock(user):
-    votedUsers.append(user)
-    userVote.append(request.form['Amethi'] + request.form['Patna'])
-    voter = request.form['currUser']
-    votes = request.form['Amethi'] + request.form['Patna']
-    # print(voter)
-    # print("\n")
-    # print(votes)
-    blockchain.mineBlock(voter, votes)
-    # print(blockchain.blockchain[1].votes)
-    # print(len(blockchain.blockchain))
-    return render_template('login.html')
+blockchain.mineBlock(voter, votes)
+
+def viewUser():
+    khatauli = input()
+    data=[]
+    for block in blockchain.blockchain:
+        if block.user == khatauli:
+            data.append(block.transaction)
+    
+    return data
+
+# def mineBlock(user):
+#     votedUsers.append(user)
+#     userVote.append(request.form['Amethi'] + request.form['Patna'])
+#     voter = request.form['currUser']
+#     votes = request.form['Amethi'] + request.form['Patna']
+#     # print(voter)
+#     # print("\n")
+#     # print(votes)
+#     blockchain.mineBlock(voter, votes)
+#     # print(blockchain.blockchain[1].votes)
+#     # print(len(blockchain.blockchain))
+#     return render_template('login.html')
