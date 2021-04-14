@@ -115,21 +115,22 @@ class Blockchain:
         nonce = 0
         
         testHash = SHA.new()
-        testHash.update((str(nonce) + str(prev.index) + str(prev.time) + str(prev.user) + str(prev.data) + str(prev.prevHash) + str(prev.nonce)).encode('utf-8'))
+        testHash.update((str(nonce) + str(prev.index) + str(prev.time) + str(prev.user) + str(prev.transaction) + str(prev.prevHash) + str(prev.nonce)).encode('utf-8'))
         
         while (testHash.hexdigest()[:self.diff] == '0'*self.diff):
             nonce += 1
-            testHash.update((str(nonce) + str(prev.index) + str(prev.time) + str(prev.user) + str(prev.data) + str(prev.prevHash) + str(prev.nonce)).encode('utf-8'))
+            testHash.update((str(nonce) + str(prev.index) + str(prev.time) + str(prev.user) + str(prev.transaction) + str(prev.prevHash) + str(prev.nonce)).encode('utf-8'))
 
         return nonce
 
     ################################################
     ## MINING THE BLOCK AND ADD TO THE BLOCKCHAIN ##
     ################################################
-    def mineBlock(self, user, data):
+    def mineBlock(self, user, transaction):
         prevBlock = self.blockchain[-1]
         nonce = self.nonceCalcFunc(prevBlock)
-        self.createBlock((prevBlock.index + 1), dt.now(), user, data, prevBlock.currHash, nonce)
+        self.createBlock((prevBlock.index + 1), dt.now(), user, transaction, prevBlock.currHash, nonce)
+        print("block ban gaya")
 
 
 blockchain = Blockchain(2)
