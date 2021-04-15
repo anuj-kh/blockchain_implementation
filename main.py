@@ -1,168 +1,189 @@
 import Crypto
-
 import DES
-
-import des
-
+import csv
 from Crypto.Hash import SHA
-
 from datetime import datetime as dt
-
 from random import randint, sample
+from Crypto.Util.Padding import pad
 
-########################
-## Values for the ZKP ##
-########################
-p = 11                                  # PRIME NUMBER
-g = 2                                   # GENERATOR
-r = sample(range(0,11), 5)              # 5 RANDOM INTEGERS BETWEEN 0 AND (p-1)
-b = [randint(0,1) for i in range(5)]    # LIST OF 5 INTEGRS EITHER 0 OR 1
+#Initializing ZKP values
+p = 11                                  
+g = 2                                  
+r  = 0          
+b  = 0 
+y = 0
 
-##################
-## USER DETAILS ##
-##################
-# users = ['1', 'f20171602', 'f20171501']
-# passwords = ['1', 'chandi', 'shilbi']
-users = []
-passwords = []
-# keys = [1,1,1]
-keys = []
-# y = [ (pow(g, val)%p) for val in keys]
-y = []
 
-####################################
-#from des import DesKey
+open_transactions=[] #stores current open transactions
+success_transactions=[] #stores succesful transactions
+
 from Crypto.Cipher import DES
-####  Creating the Block Class  ####
-####################################
+#Here we create the block class
 class Block:
-    def __init__(self, index, time, user, transaction, prevHash, nonce):
-        self.index = index                      # INDEX OF THE BLOCK
-        self.time = time                        # TIME AT THE TIME OF MINING
-        self.user = user                      # USER WHO VOTED
-        self.transaction = transaction                      # USER'S VOTE
-        self.prevHash = prevHash                # HASH OF THE PREVIOUS BLOCK
-        self.nonce = nonce                      # NONCE VALUE
-        self.currHash = self.hashBlock()        # HASH OF THE CURRENT BLOCK
+    def __init__(self, index, time, transaction, prevHash, nonce):
+        self.index = index                     
+        self.time = time                        
+        self.transaction = transaction         
+        self.prevHash = prevHash                
+        self.nonce = nonce                      
+        self.currHash = self.hashBlock()  
 
     def hashBlock(self):
-        hashed = SHA.new()
-        data = str(self.index) + str(self.time) + str(self.user) + str(self.transaction) + str(self.prevHash) + str(self.nonce)
-        hashed.update(data.encode('utf-8'))
+        data = str(self.index) + str(self.time) + str(self.transaction) + str(self.prevHash) + str(self.nonce)
+        hashed = SHA.new(data.encode('utf-8'))
+        hashed=str(hashed).split(" ")[-1]
+        hashed=hashed.rstrip(hashed[-1])
+        hashed=hashed.encode()
+        print(hashed)
         #DES
-        anskey = b"133457799BBCDFF1"
+        anskey = b"\x13\x34\x57\x79\x9B\xBC\xDF\xF1"
         des = DES.new(anskey, DES.MODE_ECB)
-
-        encryptedtext=des.encrypt(hashed)
+        encryptedtext=des.encrypt(pad(hashed, 64))
+        print("Encrypted Text: ",encryptedtext)
         return encryptedtext
 
         
 
-#########################################
-####  Creating the Blockchain Class  ####
-#########################################
-class Blockchain:
+class Blockchain: 
     def __init__(self, diff):
-        self.blockchain = []        # STORES THE BLOCKS
-        self.diff = diff            # DIFFUCULTY VALUE FOR MINING
-        self.verify = []            # (r + b*x)mod(p-1) VALUES FOR THE RESPECTIVE r AND b VALUES
-        self.verifyIndex = 0        # INDEX OF THE USERS ACCOUNT TO BE VERIFIED
+        # self.transactions = []  
+        self.blockchain = []        
+        self.diff = diff          
 
-    ##########################
-    ## CREATE GENESIS BLOCK ##
-    ##########################
+    #creating genesis block, which acts as a header block in the code
     def genesisBlock(self):
         time = dt.now()
-        self.createBlock(0, time, "None", 0, "0" , 0)
+        trans=[]
+        self.createBlock(0, time, trans, "0" , 0)
 
-    ######################
-    ## CREATE NEW BLOCK ##
-    ######################
-    def createBlock(self, index, time, user, transaction, prevHash, nonce):
-        block = Block(index, time, user, transaction, prevHash, nonce)
+
+    def createBlock(self, index, time, transaction, prevHash, nonce): #creates a new block
+        block = Block(index, time, transaction, prevHash, nonce)
         self.blockchain.append(block)
 
-    ###########################################
-    ## VERIFY IF THE USER IS VALID USING ZKP ##
-    ###########################################
-    def verifyTransaction(self):
-        ret = []
-        for i in range(5):
-            h = pow(g, r[i])%p
-            s = self.verify[i]
-            ret.append((pow(g, s)%p) == (h * (pow(y[self.verifyIndex], b[i])%p)))
-        
-        # print("In Verify Transaction\n")
-        # print(ret.count(True))
-
-        if ret.count(True) >= 3:
-            return True
-        else:
-            return False
-
-    ###########################################################
-    ## CALCULATE THE NONCE FOR THE CURRENT BLOCK TO BE MINED ##
-    ###########################################################
-    def nonceCalcFunc(self, block):
+    def nonceCalcFunc(self, block): #nonce caculator
         prev = block
         nonce = 0
         
         testHash = SHA.new()
-        testHash.update((str(nonce) + str(prev.index) + str(prev.time) + str(prev.user) + str(prev.data) + str(prev.prevHash) + str(prev.nonce)).encode('utf-8'))
+        testHash.update((str(nonce) + str(prev.index) + str(prev.time)+ str(prev.transaction) + str(prev.prevHash) + str(prev.nonce)).encode('utf-8'))
         
         while (testHash.hexdigest()[:self.diff] == '0'*self.diff):
             nonce += 1
-            testHash.update((str(nonce) + str(prev.index) + str(prev.time) + str(prev.user) + str(prev.data) + str(prev.prevHash) + str(prev.nonce)).encode('utf-8'))
-
+            testHash.update((str(nonce) + str(prev.index) + str(prev.time)+ str(prev.transaction) + str(prev.prevHash) + str(prev.nonce)).encode('utf-8'))
+            # testHash.update((str(prev.prevHash) + str(prev.nonce)).encode('utf-8'))
+        print("test: ",testHash)
         return nonce
 
-    ################################################
-    ## MINING THE BLOCK AND ADD TO THE BLOCKCHAIN ##
-    ################################################
-    def mineBlock(self, user, data):
+    def mineBlock(self,mineArr): #mine the block
         prevBlock = self.blockchain[-1]
         nonce = self.nonceCalcFunc(prevBlock)
-        self.createBlock((prevBlock.index + 1), dt.now(), user, data, prevBlock.currHash, nonce)
+
+        self.createBlock((prevBlock.index + 1), dt.now(), open_transactions, prevBlock.currHash, nonce)
+        print("block ban gaya")
 
 
 blockchain = Blockchain(2)
 blockchain.genesisBlock()
 
-def verifyTransaction(self,x,user):
-    blockchain.verify.append( (r+b*x) % (p-1))
-    blockchain.verifyIndex = users.index(user)
-    if blockchain.verifyTransaction():
-        currentUser = user
-        Blockchain.mineBlock(self,currentUser,self.transaction)
+def verifyTransaction():
+    mineArr=[]
+    print("In verifyTransaction: ",open_transactions," ",len(open_transactions))
+
+    for i in range(len(open_transactions)):
+        r=randint(0,p-1)         
+        b=randint(0,1)
+        amount=int(open_transactions[i]['amount'])
+        y=pow(g,amount)%p
+        # print(type(amount))
+
+        s=(r+b*amount) % (p-1)
+        h = pow(g,r)%p
+        if (pow(g, s)%p) == (h * (pow(y, b)%p)):
+            mineArr.append(open_transactions[i])
+        else:
+            print("The transaction ",open_transactions[i]," is invalid")
+
+    if len(mineArr)>0:
+        blockchain.mineBlock(mineArr)
+        print("Valid Transactions mined")
     else:
-        error = 'Invalid User.'
-        #dekhte hai.. tata bye bye
+        print("No transaction to mine")
 
 
 def viewUser():
-    khatauli = input()
+    inputUser = input("Input user's name: ")
     data=[]
     for block in blockchain.blockchain:
-        if block.user == khatauli:
-            data.append(block.transaction)
+        for x in block.transaction:
+            if x['sender'] == inputUser:
+                data.append(x)
     
-    return data
+    print(data)
+
+def get_transaction():
+    sender = input("Input sender's name: ")
+    recipient = input("Input recipient's name: ")
+    amount = input("Enter the transaction amount: ")
+
+    transaction = {'sender': sender,
+                    'recipient': recipient,
+                    'amount': amount}
+    return transaction,sender
+
+def printFullBlockchain():
+    for i in range(len(blockchain.blockchain)):
+        print("Details of block ",i," are:")
+        print("\tTime=",blockchain.blockchain[i].time)
+        print("\tTransactions=",blockchain.blockchain[i].transaction)
+        print("\tPrevious block Hash=",blockchain.blockchain[i].prevHash)
+        print("\tCurrent block Hash=",blockchain.blockchain[i].currHash)
+        print("\tNonce=",blockchain.blockchain[i].nonce)
+
+
+def save(): #creates the csv file
+    csv_columns = ['sender','recipient','amount']
+    csv_file = "save.csv"
+    try:
+        with open(csv_file, 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
+            writer.writeheader()
+            for data in open_transactions:
+                writer.writerow(data)
+    except IOError:
+        print("I/O error")
 
 if __name__ == '__main__':
-    user = input()
-    transaction = input()
-    blockchain.mineBlock(user,transaction)
-    print("GREAT")
+    while(True): #takes user input
+        print("Enter your choice:")
+        print("0: Do a transaction")
+        print("1: Verify transaction and then mine block")
+        print("2: View user")
+        print("3: Print full blockchain")
+        print("4: Exit")
 
-# def mineBlock(user):
-#     votedUsers.append(user)
-#     userVote.append(request.form['Amethi'] + request.form['Patna'])
-#     voter = request.form['currUser']
-#     votes = request.form['Amethi'] + request.form['Patna']
-#     # print(voter)
-#     # print("\n")
-#     # print(votes)
-#     blockchain.mineBlock(voter, votes)
-#     # print(blockchain.blockchain[1].votes)
-#     # print(len(blockchain.blockchain))
-#     return render_template('login.html')
+        st=input()
+        if st=='0':
+            transaction,sender=get_transaction()
+            open_transactions.append(transaction)
+            save() #creates the CSV
+            print(open_transactions)
+            #save_data()
+            #baad me (11 pm se pehle)
+        elif st=='1':
+            verifyTransaction()
+            open_transactions=[]
+            r=0
+            b=0
+            y=0
+        elif st=='2':
+            viewUser()
+        elif st=='3':
+            printFullBlockchain()
+        elif st=='4':
+            break
+        else:
+            print("Please choose from the following")
+        
+        
+    print("Ho gaya.. GG")
