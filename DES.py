@@ -1,6 +1,6 @@
 from sys import exit
 from time import time
- 
+
 KeyLength = 10
 SubKeyLength = 8
 DataLength = 8
@@ -64,7 +64,7 @@ def keyGen(key):
         subKey1 += (128 >> index) * shiftedOnceKey[elem - 1]
         subKey2 += (128 >> index) * shiftedTwiceKey[elem - 1]
     return (subKey1, subKey2)
- 
+from Crypto.Cipher import DES 
 def fk(subKey, inputData):
     """Apply Feistel function on data with given subkey"""
     def F(sKey, rightNibble):
@@ -89,9 +89,8 @@ def decrypt(key, ciphertext):
     data = fk(keyGen(key)[1], ip(ciphertext))
     return fp(fk(keyGen(key)[0], swapNibbles(data)))  
  
+
 if __name__ == '__main__':
-    # Test vectors described in "Simplified DES (SDES)"
-    # (http://www2.kinneret.ac.il/mjmay/ise328/328-Assignment1-SDES.pdf)
  
     try:
         assert encrypt(0b0000000000, 0b10101010) == 0b00010001
