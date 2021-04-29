@@ -1,10 +1,11 @@
 import Crypto
-import DES
 import csv
 from Crypto.Hash import SHA
 from datetime import datetime as dt
 from random import randint, sample
 from Crypto.Util.Padding import pad
+from Crypto.Cipher import DES
+import pandas as pd
 
 #Initializing ZKP values
 p=11                                  
@@ -13,11 +14,12 @@ r =0
 b =0 
 y=0
 
+# df = pd.DataFrame([], columns = ['index', 'time','transaction','proof_of_work','currentHash','previousHash'])
 
 open_transactions=[] #stores current open transactions
 success_transactions=[] #stores succesful transactions
 
-from Crypto.Cipher import DES
+# from Crypto.Cipher import DES
 #Here we create the block class
 class Block:
 
@@ -43,7 +45,6 @@ class Block:
         # print("Encrypted Text: ",encryptedtext)
         return encryptedtext
 
-        
 
 class Blockchain: 
 
@@ -57,6 +58,8 @@ class Blockchain:
         time=dt.now()
         trans=[]
         self.createBlock(0,time,trans,"0",0)
+        latestBlock=self.blockchain[-1]
+        df.loc[len(df.index)] = [latestBlock.index, latestBlock.time,latestBlock.transaction,latestBlock.proof_of_work,latestBlock.currentHash,latestBlock.previousHash]
 
     def createBlock(self, index, time, transaction, previousHash, proof_of_work): #creates a new block
         block=Block(index, time, transaction, previousHash, proof_of_work)
@@ -72,19 +75,18 @@ class Blockchain:
         while(testHash.hexdigest()[:self.diff]=='0'*self.diff):
             proof_of_work += 1
             testHash.update((str(proof_of_work)+str(prev.index)+str(prev.time)+ str(prev.transaction)+str(prev.previousHash)+str(prev.proof_of_work)).encode('utf-8'))
-            # testHash.update((str(prev.previousHash)+str(prev.proof_of_work)).encode('utf-8'))
-        print("test: ",testHash)
         return proof_of_work
 
     def mineBlock(self,mineArr): #mine the block
         prevBlock=self.blockchain[-1]
         proof_of_work=self.proof_of_work_calculation(prevBlock)
-
-        self.createBlock((prevBlock.index+1), dt.now(), open_transactions, prevBlock.currentHash, proof_of_work)
+        print("mine here")
+        self.createBlock((prevBlock.index+1), dt.now(), mineArr, prevBlock.currentHash, proof_of_work)
+        latestBlock=self.blockchain[-1]
+        df.loc[len(df.index)] = [latestBlock.index, latestBlock.time,latestBlock.transaction,latestBlock.proof_of_work,latestBlock.currentHash,latestBlock.previousHash]
         print("block ban gaya")
 
 blockchain=Blockchain(2)
-blockchain.genesisBlock()
 
 def verifyTransaction():
     mineArr=[]
@@ -95,7 +97,6 @@ def verifyTransaction():
         b=randint(0,1)
         amount=int(open_transactions[i]['amount'])
         y=pow(g,amount)%p
-        # print(type(amount))
 
         s=(r+b*amount) % (p-1)
         h=pow(g,r)%p
@@ -105,7 +106,7 @@ def verifyTransaction():
             print("The transaction ",open_transactions[i]," is invalid")
 
     if len(mineArr)>0:
-        save(mineArr) #creates the CSV
+        # save(mineArr) #creates the CSV
         blockchain.mineBlock(mineArr)
         print("Valid Transactions mined")
     else:
@@ -116,11 +117,8 @@ def viewUser():
     inputUser=input("Input user's name: ")
     data=[]
     for block in blockchain.blockchain:
-        for x in block.transaction:
-            if x['sender'] == inputUser:
-                data.append(x)
-    
-    print(data)
+        if block.transaction.find(inputUser)>0:
+            print(block.transaction)
 
 def get_transaction():
     sender=input("Input sender's name: ")
@@ -137,24 +135,17 @@ def printFullBlockchain():
         print("Details of block ",i," are:")
         print("\tTime=",blockchain.blockchain[i].time)
         print("\tTransactions=",blockchain.blockchain[i].transaction)
-        # print("\tPrevious block Hash=",blockchain.blockchain[i].previousHash)
-        # print("\tCurrent block Hash=",blockchain.blockchain[i].currentHash)
-        print("\tproof_of_work=",blockchain.blockchain[i].proof_of_work)
-
-
-def save(mineArr): #creates the csv file
-    csv_columns=['sender','recipient','amount']
-    csv_file="save.csv"
-    try:
-        with open(csv_file, 'w') as csvfile:
-            writer=csv.DictWriter(csvfile, fieldnames=csv_columns)
-            writer.writeheader()
-            for data in mineArr:
-                writer.writerow(data)
-    except IOError:
-        print("I/O error")
 
 if __name__ == '__main__':
+    df=pd.read_csv('save.csv')
+    # print(len(df))
+    if len(df)==0:
+        blockchain.genesisBlock()
+    else:
+        for i in range(len(df)):
+            block=Block(df.iloc[i,0], df.iloc[i,1], df.iloc[i,2], df.iloc[i,5], df.iloc[i,3])
+            block.currentHash=df.iloc[i,4]
+            blockchain.blockchain.append(block)
     while(True): #takes user input
         print("Enter your choice:")
         print("0: Do a transaction")
@@ -179,6 +170,7 @@ if __name__ == '__main__':
         elif st=='3':
             printFullBlockchain()
         elif st=='4':
+            df.to_csv('save.csv',index=False)
             break
         else:
             print("Please choose from the following")
